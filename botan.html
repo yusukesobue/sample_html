@@ -1,10 +1,74 @@
-<div>
-  <button onclick="changeText()">このボタンを押してください</button>
-  <p id="status">ボタンを押してみてください。</p>
-</div>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>位置情報共有</title>
+</head>
+<body>
+  <h1>位置情報共有デモ</h1>
+  <button onclick="startLocationSharing()">位置情報の共有を開始</button>
+  <button onclick="stopLocationSharing()">位置情報の共有を停止</button>
+  <p id="status">現在の状態: 未接続</p>
 
-<script>
-  function changeText() {
-    document.getElementById("status").innerText = "ボタンが押されました！";
-  }
-</script>
+  <script>
+    const featureLayerUrl = "https://services7.arcgis.com/amAEseZcxHtUR8pU/arcgis/rest/services/layer_1/FeatureServer";
+    let locationUpdateInterval = null; // 取得間隔を制御する変数
+
+    // 位置情報共有を開始する関数
+    function startLocationSharing() {
+      if (!locationUpdateInterval) { // 既に実行中でない場合のみ開始
+        document.getElementById("status").innerText = "位置情報共有を開始しました。";
+        locationUpdateInterval = setInterval(getAndSendLocation, 10000); // 10秒間隔で取得
+      }
+    }
+
+    // 位置情報共有を停止する関数
+    function stopLocationSharing() {
+      if (locationUpdateInterval) {
+        clearInterval(locationUpdateInterval);
+        locationUpdateInterval = null;
+        document.getElementById("status").innerText = "位置情報共有を停止しました。";
+      }
+    }
+
+    // 位置情報を取得し、フィーチャレイヤに送信する関数
+    function getAndSendLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+          const latitude = position.coords.latitude;
+          const longitude = position.coords.longitude;
+
+          // フィーチャデータ構造の作成
+          const features = [{
+            geometry: { x: longitude, y: latitude },
+            attributes: {
+              UserID: "Participant1", // 必要に応じて変更
+              Time_Stamp: new Date().toISOString()
+            }
+          }];
+
+          // データをフィーチャレイヤに送信
+          fetch(featureLayerUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ features: features })
+          })
+          .then(response => response.json())
+          .then(data => {
+            document.getElementById("status").innerText = "位置情報を更新しました！";
+          })
+          .catch(error => {
+            document.getElementById("status").innerText = "位置情報送信に失敗しました。";
+            console.error("Error:", error);
+          });
+        }, error => {
+          console.error("位置情報取得エラー:", error);
+        });
+      } else {
+        document.getElementById("status").innerText = "このブラウザでは位置情報が使用できません。";
+      }
+    }
+  </script>
+</body>
+</html>
